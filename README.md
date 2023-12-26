@@ -9,12 +9,18 @@ The user should be able to create a WhatsApp group and configure the Zap-Hub ins
 2. Name the group with the following prefix: `[GPT]`
 3. Follow the instructions in the group to configure the Zap-Hub
 
-## Availabe-Commands
+### Availabe-Commands
 - `!help` - Show the available commands
 - `!register` - Set the OpenAI API key _(the message with the key will be deleted after setted)_
 - `!unregister` - Remove the OpenAI API key
 - `!gpt` - Send a message to the GPT-4 API, you can add a image to the message
 - `<audio>` - Send audios from the configured WhatsApp Group to the GPT-4 API _(will send all received/created audios)_
+
+### Important
+- The Zap-Hub will only work in the group that was configured
+- The Zap-Hub configuration is stored in the group description _(the description will be encoded)_
+- You should NOT edit manually the Zap-Hub group description
+- The Zap-Hub will use **YOUR** WhatsApp acount to receive and send messages, so have in mind that the Zap-Hub will always answer as **YOU** _(it will use your profile)_
 
 ## How to run
 
