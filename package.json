@@ -1,0 +1,16 @@
+{
+  "name": "zap-hub",
+  "module": "src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "openai": "^4.20.1",
+    "s1-zap-agents": "^0.2.4",
+    "whatsapp-web.js": "^1.23.0"
+  }
+}
