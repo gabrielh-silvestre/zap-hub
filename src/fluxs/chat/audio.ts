@@ -1,42 +1,37 @@
-import OpenAI from 'openai';
-import { AudioHandler, ZapAgent } from 's1-zap-agents';
+import { isAudioMsg } from 's1-zap-agents';
 import { GroupChat, Message } from 'whatsapp-web.js';
+
+import { BaseZapHubHandler } from './base';
+
 import { baseHubCondition } from '../../utils/helpers';
-import { ApiKeyChatRepository, PromptChatRepository } from '../../repository';
 
-export class ChatAudioHandler extends AudioHandler {
-  async getApiKey(chat: GroupChat) {
-    const repo = new ApiKeyChatRepository(chat);
-    return await repo.get();
-  }
-
-  async getPrompt(chat: GroupChat) {
-    const repo = new PromptChatRepository(chat);
-    return await repo.get();
-  }
-
-  async shouldExecute(msg: Message): Promise<boolean> {
+export class ChatAudioHandler extends BaseZapHubHandler {
+   async shouldExecute(msg: Message): Promise<boolean> {
     const canExecute = await baseHubCondition(msg);
 
-    return this.isAudio(msg) && canExecute;
-  }
-
-  private async startAgent(chat: GroupChat) {
-    const apiKey = (await this.getApiKey(chat))?.openai_key;
-    if (!apiKey) throw new Error('API Key not found');
-
-    const message = (await this.getPrompt(chat))?.prompt;
-    if (!message) throw new Error('Prompt not found');
-
-    this.agent = new ZapAgent({
-      agentId: import.meta.env.AGENT_ID as string,
-      openai: new OpenAI({ apiKey }),
-      prompt: { message },
-    });
+    return isAudioMsg(msg) && canExecute;
   }
 
   async handle(chat: GroupChat, msg: Message): Promise<boolean | null> {
-    await this.startAgent(chat);
-    return super.handle(chat, msg);
+    await this.startGroupAgent(chat);
+    if (!this.agent) return null;
+
+    try {
+      const media = await msg.downloadMedia();
+      const buffer = Buffer.from(media.data, 'base64');
+
+      const transcription = await this.agent?.transcriptAudio(buffer);
+      if (!transcription) return false;
+
+      for await (const res of this.agent.genChat(transcription)) {
+        if (!res) continue;
+        await msg.reply(this.formatAnswer(res));
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error(error);
+      return null;
+    }
   }
 }

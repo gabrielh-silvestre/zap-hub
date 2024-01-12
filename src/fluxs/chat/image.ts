@@ -1,43 +1,38 @@
-import OpenAI from "openai";
-import { ImageHandler, ZapAgent } from "s1-zap-agents";
+import { isImageMsg } from "s1-zap-agents";
 import { GroupChat, Message } from "whatsapp-web.js";
+
+import { BaseZapHubHandler } from "./base";
+
 import { baseHubCondition } from "../../utils/helpers";
-import { ApiKeyChatRepository, PromptChatRepository } from "../../repository";
 
-export class ChatImageHandler extends ImageHandler {
-  async getApiKey(chat: GroupChat) {
-    const repo = new ApiKeyChatRepository(chat);
-    return await repo.get();
-  }
-
-  async getPrompt(chat: GroupChat) {
-    const repo = new PromptChatRepository(chat);
-    return await repo.get();
-  }
-
-  private async startAgent(chat: GroupChat) {
-    const apiKey = (await this.getApiKey(chat))?.openai_key;
-    if (!apiKey) throw new Error('API Key not found');
-
-    const message = (await this.getPrompt(chat))?.prompt;
-    if (!message) throw new Error('Prompt not found');
-
-    this.agent = new ZapAgent({
-      agentId: import.meta.env.AGENT_ID as string,
-      openai: new OpenAI({ apiKey }),
-      prompt: { message },
-    });
-  }
-
+export class ChatImageHandler extends BaseZapHubHandler {
   async shouldExecute(msg: Message): Promise<boolean> {
     const canExecute = await baseHubCondition(msg);
-    const isImage = this.isImage(msg);
 
-    return this.matchCommand(msg) && canExecute && isImage;
+    return this.matchCommand(msg) && canExecute && isImageMsg(msg);
   }
 
-  async handle(chat: GroupChat, msg: Message): Promise<boolean> {
-      await this.startAgent(chat);
-      return super.handle(chat, msg);
+  async handle(chat: GroupChat, msg: Message): Promise<boolean | null> {
+    await this.startGroupAgent(chat);
+    if (!this.agent) return null;
+
+    try {
+      const media = await msg.downloadMedia();
+      const buffer = Buffer.from(media.data, 'base64');
+
+      const streamResponses = this.agent.genChatImage(msg.body, {
+        image: buffer,
+        mimetype: media.mimetype,
+      });
+      for await (const res of streamResponses) {
+        if (!res) continue;
+        await msg.reply(this.formatAnswer(res));
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error(error);
+      return null;
+    }
   }
 }

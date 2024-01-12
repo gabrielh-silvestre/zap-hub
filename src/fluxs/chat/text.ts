@@ -1,19 +1,15 @@
-import OpenAI from 'openai';
-import { TextHandler, ZapAgent } from 's1-zap-agents';
 import { GroupChat, Message } from 'whatsapp-web.js';
 
-import { baseHubCondition } from '../../utils/helpers';
-import { ApiKeyChatRepository, PromptChatRepository } from '../../repository';
+import { BaseZapHubHandler } from './base';
 
-export class ChatTextHandler extends TextHandler {
-  async getApiKey(chat: GroupChat) {
-    const repo = new ApiKeyChatRepository(chat);
-    return await repo.get();
-  }
+import { baseHubCondition, getChatHistory } from '../../utils/helpers';
 
-  async getPrompt(chat: GroupChat) {
-    const repo = new PromptChatRepository(chat);
-    return await repo.get();
+export class ChatTextHandler extends BaseZapHubHandler {
+  getMsgBody(msg: Message): string {
+    const isCommandString = typeof this.command === 'string';
+    return isCommandString
+      ? msg.body.replace(this.command ?? '', '').trim()
+      : '';
   }
 
   async shouldExecute(msg: Message): Promise<boolean> {
@@ -22,25 +18,14 @@ export class ChatTextHandler extends TextHandler {
     return this.matchCommand(msg) && canExecute;
   }
 
-  private async startAgent(chat: GroupChat) {
-    const apiKey = (await this.getApiKey(chat))?.openai_key;
-    if (!apiKey) throw new Error('API Key not found');
-
-    const message = (await this.getPrompt(chat))?.prompt;
-    if (!message) throw new Error('Prompt not found');
-
-    this.agent = new ZapAgent({
-      agentId: import.meta.env.AGENT_ID as string,
-      openai: new OpenAI({ apiKey }),
-      prompt: { message },
-    });
-  }
-
   async handle(chat: GroupChat, msg: Message): Promise<boolean | null> {
-    try {
-      await this.startAgent(chat);
+    await this.startGroupAgent(chat);
+    if (!this.agent) return null;
 
-      const answer = await this.agent?.chat(this.getMsgBody(msg));
+    try {
+      const history = await getChatHistory(chat);
+
+      const answer = await this.agent?.chat(this.getMsgBody(msg), history);
       if (!answer) return false;
 
       await chat.sendMessage(this.formatAnswer(answer));
