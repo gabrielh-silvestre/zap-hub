@@ -5,13 +5,6 @@ import { BaseZapHubHandler } from './base';
 import { baseHubCondition, getChatHistory } from '../../utils/helpers';
 
 export class ChatTextHandler extends BaseZapHubHandler {
-  getMsgBody(msg: Message): string {
-    const isCommandString = typeof this.command === 'string';
-    return isCommandString
-      ? msg.body.replace(this.command ?? '', '').trim()
-      : '';
-  }
-
   async shouldExecute(msg: Message): Promise<boolean> {
     const canExecute = await baseHubCondition(msg);
 

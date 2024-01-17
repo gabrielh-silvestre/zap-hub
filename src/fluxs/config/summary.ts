@@ -20,6 +20,10 @@ Exibe a lista de comandos disponíveis.
 *!gpt <texto>*
 Envia o texto para o GPT e retorna a resposta.
 
+*!img <texto>*
+Envia o texto para o Dall-E e retorna a imagem.
+O prompt definido pelo comando *!prompt* NÃO será usado como base para a geração da imagem.
+
 *!prompt*
 Define um texto para ser usado como base em seus comandos.
 Exemplo: \`!prompt Você é um assistente pessoal sarcástico\`
